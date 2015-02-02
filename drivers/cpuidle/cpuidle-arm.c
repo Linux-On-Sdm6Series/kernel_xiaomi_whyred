@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/slab.h>
 
 #include <asm/cpuidle.h>
 
@@ -50,7 +49,7 @@ static int arm_enter_idle_state(struct cpuidle_device *dev,
 		 * call the CPU ops suspend protocol with idle index as a
 		 * parameter.
 		 */
-		ret = arm_cpuidle_suspend(idx);
+		arm_cpuidle_suspend(idx);
 
 		cpu_pm_exit();
 	}
@@ -95,7 +94,6 @@ static int __init arm_idle_init(void)
 {
 	int cpu, ret;
 	struct cpuidle_driver *drv = &arm_idle_driver;
-	struct cpuidle_device *dev;
 
 	/*
 	 * Initialize idle states data, starting at index 1.
@@ -107,58 +105,18 @@ static int __init arm_idle_init(void)
 	if (ret <= 0)
 		return ret ? : -ENODEV;
 
-	ret = cpuidle_register_driver(drv);
-	if (ret) {
-		pr_err("Failed to register cpuidle driver\n");
-		return ret;
-	}
-
 	/*
 	 * Call arch CPU operations in order to initialize
 	 * idle states suspend back-end specific data
 	 */
 	for_each_possible_cpu(cpu) {
 		ret = arm_cpuidle_init(cpu);
-
-		/*
-		 * Skip the cpuidle device initialization if the reported
-		 * failure is a HW misconfiguration/breakage (-ENXIO).
-		 */
-		if (ret == -ENXIO)
-			continue;
-
 		if (ret) {
 			pr_err("CPU %d failed to init idle CPU ops\n", cpu);
-			goto out_fail;
-		}
-
-		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-		if (!dev) {
-			pr_err("Failed to allocate cpuidle device\n");
-			ret = -ENOMEM;
-			goto out_fail;
-		}
-		dev->cpu = cpu;
-
-		ret = cpuidle_register_device(dev);
-		if (ret) {
-			pr_err("Failed to register cpuidle device for CPU %d\n",
-			       cpu);
-			kfree(dev);
-			goto out_fail;
+			return ret;
 		}
 	}
 
-	return 0;
-out_fail:
-	while (--cpu >= 0) {
-		dev = per_cpu(cpuidle_devices, cpu);
-		cpuidle_unregister_device(dev);
-		kfree(dev);
-	}
-
-	cpuidle_unregister_driver(drv);
-
-	return ret;
+	return cpuidle_register(drv, NULL);
 }
 device_initcall(arm_idle_init);
