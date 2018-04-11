@@ -310,6 +310,4 @@ static inline void fsnotify_change(struct dentry *dentry, unsigned int ia_valid)
 	}
 }
 
-
-
 #endif	/* _LINUX_FS_NOTIFY_H */
