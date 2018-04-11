@@ -39,6 +39,7 @@
 #include <linux/balloon_compaction.h>
 #include <linux/mmu_notifier.h>
 #include <linux/page_idle.h>
+#include <linux/page_owner.h>
 #include <linux/ptrace.h>
 
 #include <asm/tlbflush.h>
