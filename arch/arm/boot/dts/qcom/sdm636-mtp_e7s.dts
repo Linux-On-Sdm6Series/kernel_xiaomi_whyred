@@ -18,6 +18,7 @@
 #include "sdm636-mtp_e7s.dtsi"
 //#include "sdm660-external-codec.dtsi"
 #include "sdm660-internal-codec.dtsi"
+#include "xiaomi-sdm660-common.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. SDM 636 PM660 + PM660L E7S";
