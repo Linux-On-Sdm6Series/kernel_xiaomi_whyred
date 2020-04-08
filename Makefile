@@ -672,6 +672,7 @@ KBUILD_CFLAGS	+= -Os
 else
 ifeq ($(cc-name),clang)
 KBUILD_CFLAGS	+= -O3
+KBUILD_CFLAGS   += -mcpu=cortex-a53 -mtune=cortex-a53
 else
 ifdef CONFIG_PROFILE_ALL_BRANCHES
 KBUILD_CFLAGS	+= -O2
