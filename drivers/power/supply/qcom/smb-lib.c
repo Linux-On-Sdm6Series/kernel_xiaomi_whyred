@@ -3679,10 +3679,6 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 1500000);
 		break;
 	case POWER_SUPPLY_TYPE_USB_DCP:
-<<<<<<< HEAD
-
-=======
->>>>>>> 222ff7a569112d234dcfd609f8ee492a6c733116
 		typec_mode = smblib_get_prop_typec_mode(chg);
 		rp_ua = get_rp_based_dcp_current(chg, typec_mode);
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, rp_ua);
@@ -3703,9 +3699,10 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 2500000);
 		smblib_err(chg, "lct battery smblib_force_legacy_icl qc3.0\n");
 		break;
-	case POWER_SUPPLY_TYPE_USB_FLOAT:
+/*	case POWER_SUPPLY_TYPE_USB_FLOAT:
 			vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 500000);
 		break;
+*/
 	default:
 		smblib_err(chg, "Unknown APSD %d; forcing 500mA\n", pst);
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 500000);
