@@ -692,6 +692,7 @@ static void smblib_uusb_removal(struct smb_charger *chg)
 	vote(chg->pl_enable_votable_indirect, USBIN_V_VOTER, false, 0);
 	vote(chg->usb_icl_votable, SW_QC3_VOTER, false, 0);
 	vote(chg->usb_icl_votable, USBIN_USBIN_BOOST_VOTER, false, 0);
+	vote(chg->hvdcp_hw_inov_dis_votable, OV_VOTER, false, 0);
 
 	cancel_delayed_work_sync(&chg->hvdcp_detect_work);
 
@@ -2076,6 +2077,18 @@ static int smblib_dm_pulse(struct smb_charger *chg)
 	return rc;
 }
 
+static int smblib_force_vbus_voltage(struct smb_charger *chg, u8 val)
+{
+	int rc;
+
+	rc = smblib_masked_write(chg, CMD_HVDCP_2_REG, val, val);
+	if (rc < 0)
+		smblib_err(chg, "Couldn't write to CMD_HVDCP_2_REG rc=%d\n",
+				rc);
+
+	return rc;
+}
+
 int smblib_dp_dm(struct smb_charger *chg, int val)
 {
 	int target_icl_ua, rc = 0;
@@ -2126,6 +2139,21 @@ int smblib_dp_dm(struct smb_charger *chg, int val)
 						target_icl_ua - 100000);
 		smblib_dbg(chg, PR_PARALLEL, "ICL DOWN ICL=%d reduction=%d\n",
 				target_icl_ua, chg->usb_icl_delta_ua);
+		break;
+	case POWER_SUPPLY_DP_DM_FORCE_5V:
+		rc = smblib_force_vbus_voltage(chg, FORCE_5V_BIT);
+		if (rc < 0)
+			pr_err("Failed to force 5V\n");
+		break;
+	case POWER_SUPPLY_DP_DM_FORCE_9V:
+		rc = smblib_force_vbus_voltage(chg, FORCE_9V_BIT);
+		if (rc < 0)
+			pr_err("Failed to force 9V\n");
+		break;
+	case POWER_SUPPLY_DP_DM_FORCE_12V:
+		rc = smblib_force_vbus_voltage(chg, FORCE_12V_BIT);
+		if (rc < 0)
+			pr_err("Failed to force 12V\n");
 		break;
 	case POWER_SUPPLY_DP_DM_ICL_UP:
 	default:
@@ -2838,7 +2866,7 @@ int smblib_set_prop_pd_active(struct smb_charger *chg,
 		hvdcp = stat & QC_CHARGER_BIT;
 		vote(chg->apsd_disable_votable, PD_VOTER, false, 0);
 		vote(chg->pd_allowed_votable, PD_VOTER, true, 0);
-		vote(chg->usb_irq_enable_votable, PD_VOTER, true, 0);
+		vote(chg->usb_irq_enable_votable, PD_VOTER, false, 0);
 		vote(chg->hvdcp_disable_votable_indirect, PD_INACTIVE_VOTER,
 								false, 0);
 
@@ -3509,6 +3537,33 @@ static void smblib_handle_sdp_enumeration_done(struct smb_charger *chg,
 		   rising ? "rising" : "falling");
 }
 
+#define MICRO_10P3V	10300000
+static void smblib_check_ov_condition(struct smb_charger *chg)
+{
+	union power_supply_propval pval = {0, };
+	int rc;
+
+	if (chg->wa_flags & OV_IRQ_WA_BIT) {
+		rc = power_supply_get_property(chg->usb_psy,
+			POWER_SUPPLY_PROP_VOLTAGE_NOW, &pval);
+		if (rc < 0) {
+			smblib_err(chg, "Couldn't get current voltage, rc=%d\n",
+				rc);
+			return;
+		}
+
+		if (pval.intval > MICRO_10P3V) {
+			smblib_err(chg, "USBIN OV detected\n");
+			vote(chg->hvdcp_hw_inov_dis_votable, OV_VOTER, true,
+				0);
+			pval.intval = POWER_SUPPLY_DP_DM_FORCE_5V;
+			rc = power_supply_set_property(chg->batt_psy,
+				POWER_SUPPLY_PROP_DP_DM, &pval);
+			return;
+		}
+	}
+}
+
 #define QC3_PULSES_FOR_6V	5
 #define QC3_PULSES_FOR_9V	20
 #define QC3_PULSES_FOR_12V	35
@@ -3518,6 +3573,7 @@ static void smblib_hvdcp_adaptive_voltage_change(struct smb_charger *chg)
 	u8 stat;
 	int pulses;
 
+	smblib_check_ov_condition(chg);
 	power_supply_changed(chg->usb_main_psy);
 	if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP) {
 		rc = smblib_read(chg, QC_CHANGE_STATUS_REG, &stat);
@@ -3867,6 +3923,7 @@ static void smblib_handle_typec_removal(struct smb_charger *chg)
 	/* reset hvdcp voters */
 	vote(chg->hvdcp_disable_votable_indirect, VBUS_CC_SHORT_VOTER, true, 0);
 	vote(chg->hvdcp_disable_votable_indirect, PD_INACTIVE_VOTER, true, 0);
+	vote(chg->hvdcp_hw_inov_dis_votable, OV_VOTER, false, 0);
 
 	/* reset power delivery voters */
 	vote(chg->pd_allowed_votable, PD_VOTER, false, 0);
@@ -4118,6 +4175,14 @@ irqreturn_t smblib_handle_high_duty_cycle(int irq, void *data)
 	struct smb_charger *chg = irq_data->parent_data;
 
 	chg->is_hdc = true;
+	/*
+	 * Disable usb IRQs after the flag set and re-enable IRQs after
+	 * the flag cleared in the delayed work queue, to avoid any IRQ
+	 * storming during the delays
+	 */
+	if (chg->irq_info[HIGH_DUTY_CYCLE_IRQ].irq)
+		disable_irq_nosync(chg->irq_info[HIGH_DUTY_CYCLE_IRQ].irq);
+
 	schedule_delayed_work(&chg->clear_hdc_work, msecs_to_jiffies(60));
 
 	return IRQ_HANDLED;
@@ -4295,6 +4360,8 @@ static void clear_hdc_work(struct work_struct *work)
 						clear_hdc_work.work);
 
 	chg->is_hdc = 0;
+	if (chg->irq_info[HIGH_DUTY_CYCLE_IRQ].irq)
+		enable_irq(chg->irq_info[HIGH_DUTY_CYCLE_IRQ].irq);
 }
 
 static void rdstd_cc2_detach_work(struct work_struct *work)
