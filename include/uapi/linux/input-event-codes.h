@@ -173,7 +173,7 @@
 #define KEY_SYSRQ		99
 #define KEY_RIGHTALT		100
 #define KEY_LINEFEED		101
-#define KEY_HOME		102
+#define KEY_HOME		125
 #define KEY_UP			103
 #define KEY_PAGEUP		104
 #define KEY_LEFT		105
@@ -198,7 +198,7 @@
 #define KEY_HANGUEL		KEY_HANGEUL
 #define KEY_HANJA		123
 #define KEY_YEN			124
-#define KEY_LEFTMETA		125
+#define KEY_LEFTMETA		102
 #define KEY_RIGHTMETA		126
 #define KEY_COMPOSE		127
 
