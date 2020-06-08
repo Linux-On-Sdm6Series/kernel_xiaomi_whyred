@@ -62,7 +62,7 @@ build_kernel() {
 export KBUILD_COMPILER_STRING=$(${CLANG_DIR}/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
 BUILD_START=$(date +"%s")
 echo -e "$blue Starting $nocol"
-make whyred_defconfig O=out ARCH="${ARCH}"
+make nethunter_defconfig O=out ARCH="${ARCH}"
 echo -e "$yellow Making $nocol"
 export PATH=${CLANG_DIR}/bin:${PATH}
 time make -j"${JOBS}" \
