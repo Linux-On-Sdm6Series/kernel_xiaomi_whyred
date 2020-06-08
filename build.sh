@@ -85,6 +85,7 @@ if [[ ! -e ${KERNEL_DIR}/out/arch/arm64/boot/Image.gz-dtb ]]; then
 fi
 echo "Movings Files"
 cd ${ANYKERNEL_DIR}
+rm -rf Image.gz-dtb modules/system/lib/modules/*
 git reset --hard HEAD
 git checkout whyredo
 mv ${KERNEL_DIR}/out/arch/arm64/boot/Image.gz-dtb Image.gz-dtb
