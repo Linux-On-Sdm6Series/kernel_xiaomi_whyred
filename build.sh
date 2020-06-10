@@ -5,17 +5,33 @@ yellow='\033[0;33m'
 red='\033[0;31m'
 nocol='\033[0m'
 
-if [[ $1 == clean || $1 == c ]]; then
-    echo "Building Clean"
-    type=clean
-elif [[ $1 == dirty || $1 == d ]]; then
-    echo "Building Dirty"
-    type=dirty
-elif [[ $1 == ci ]]; then
-    type=ci
+if [[ $1 != nethunter ]]; then
+    if [[ $1 == clean || $1 == c ]]; then
+        echo "Building Clean"
+        type=clean
+    elif [[ $1 == dirty || $1 == d ]]; then
+        echo "Building Dirty"
+        type=dirty
+    elif [[ $1 == ci ]]; then
+        type=ci
+    else
+       echo "Please specify type: clean or dirty"
+        exit
+    fi
 else
-    echo "Please specify type: clean or dirty"
-    exit
+    defconfig=nethunter
+    if [[ $2 == clean || $2 == c ]]; then
+        echo "Building Nethunter Clean"
+        type=clean
+    elif [[ $2 == dirty || $2 == d ]]; then
+        echo "Building Nethunter Dirty"
+        type=dirty
+    elif [[ $2 == ci ]]; then
+        type=ci
+    else
+        echo "Please specify type: clean or dirty"
+        exit
+    fi
 fi
 
 setup_env() {
@@ -62,7 +78,13 @@ build_kernel() {
 export KBUILD_COMPILER_STRING=$(${CLANG_DIR}/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
 BUILD_START=$(date +"%s")
 echo -e "$blue Starting $nocol"
-make nethunter_defconfig O=out ARCH="${ARCH}"
+if [[ $defconfig == nethunter ]]; then
+    echo "Nethunter defconfig"
+    make nethunter_defconfig O=out ARCH="${ARCH}"
+else
+    echo "whyred defconfig"
+    make whyred_defconfig O=out ARCH="${ARCH}"
+fi
 echo -e "$yellow Making $nocol"
 export PATH=${CLANG_DIR}/bin:${PATH}
 time make -j"${JOBS}" \
