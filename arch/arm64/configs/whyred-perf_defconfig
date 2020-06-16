@@ -58,6 +58,7 @@ CONFIG_ARM_CPUIDLE=y
 #=========Ubuntu==========
 
 #=========Nethunter==========
+CONFIG_USB_F_RNDIS=y
 CONFIG_SYSVIPC=y
 CONFIG_SYSVIPC_SYSCTL=y
 CONFIG_IPC_NS=y
